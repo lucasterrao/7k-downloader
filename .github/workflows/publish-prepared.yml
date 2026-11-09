@@ -1,0 +1,29 @@
+name: Publish prepared release
+on:
+  push:
+    branches: [main]
+    paths: ['.release/v3.3.0/**']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify prepared packages
+        working-directory: .release/v3.3.0
+        run: sha256sum --check SHA256SUMS.txt
+      - name: Publish version 3.3.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create v3.3.0 \
+            .release/v3.3.0/7K-Downloader-3.3.0-windows-x64.zip \
+            .release/v3.3.0/7K-Downloader-3.3.0-source.zip \
+            .release/v3.3.0/SHA256SUMS.txt \
+            --title '7K Downloader 3.3.0' \
+            --target "$GITHUB_SHA" \
+            --notes-file .release/v3.3.0/RELEASE.md
+

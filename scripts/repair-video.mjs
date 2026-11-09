@@ -1,0 +1,12 @@
+import path from 'node:path';
+import fs from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { ensurePremiereMp4, probeMedia } from '../lib/media.mjs';
+const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+const source = process.argv[2]; const output = process.argv[3];
+if (!source || !output) throw new Error('Uso: node scripts/repair-video.mjs ARQUIVO_ORIGINAL NOVA_COPIA.mp4');
+let last = -1;
+await ensurePremiereMp4(source, { binDir: path.join(root, 'bin'), output, onProgress(percent) { const value = Math.floor(percent / 10) * 10; if (value !== last) { last = value; console.log(`Conversão: ${value}%`); } } });
+const info = await probeMedia(output, path.join(root, 'bin'));
+await fs.writeFile(output + '.validacao.json', JSON.stringify({ source, output, streams: info.streams.map(s => ({ codec: s.codec_name, type: s.codec_type, pixelFormat: s.pix_fmt, width: s.width, height: s.height, fps: s.avg_frame_rate })), duration: info.format.duration }, null, 2));
+console.log('Cópia convertida e validada: ' + output);

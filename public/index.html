@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>7K Downloader</title><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head>
+<body>
+  <header><a class="brand" href="/"><span class="mark">7K</span><span>Downloader<small>Seu conteúdo, no seu computador.</small></span></a><div class="top-actions"><span class="local"><i></i> APLICATIVO LOCAL</span><button id="shutdown" class="quiet">Encerrar</button></div></header>
+  <main>
+    <section class="intro"><span class="eyebrow">VÍDEO + ÁUDIO</span><h1>Um link.<br>Seu próximo download.</h1><p>Escolha o formato, adicione os links e deixe a fila trabalhar.</p></section>
+    <div class="workspace">
+      <section class="panel composer">
+        <div class="section-head"><h2>Novo download</h2><span class="step">01 / ADICIONAR</span></div>
+        <div id="dependency" class="notice" hidden>Os componentes ainda não estão instalados. Execute <strong>Instalar componentes.cmd</strong> na pasta do aplicativo e volte aqui.</div>
+        <form id="download-form">
+          <label for="urls">Links do conteúdo <span>Um por linha · até 30 links</span></label>
+          <textarea id="urls" rows="5" placeholder="https://www.youtube.com/watch?v=…&#10;https://vimeo.com/…" required spellcheck="false"></textarea>
+          <div class="link-actions"><span id="link-count">0 links</span><button type="button" id="paste" class="quiet">Colar links</button><button type="button" id="preview" class="quiet">Consultar primeiro link ↗</button></div>
+          <div id="preview-result" class="preview" hidden></div>
+          <div class="mode-switch" role="group" aria-label="Tipo de download"><button type="button" data-mode="video" class="selected" aria-pressed="true">▸ Vídeo</button><button type="button" data-mode="audio" aria-pressed="false">♫ Somente áudio</button></div>
+          <div class="fields"><div><label for="format">Formato</label><select id="format"><option value="mp4">MP4 · ampla compatibilidade</option><option value="mkv">MKV · qualidade e flexibilidade</option></select></div><div id="quality-field"><label for="quality">Qualidade máxima</label><select id="quality"><option value="best">Melhor disponível</option><option value="2160">4K · 2160p</option><option value="1440">2K · 1440p</option><option value="1080" selected>Full HD · 1080p</option><option value="720">HD · 720p</option><option value="480">480p</option></select></div><div id="bitrate-field" hidden><label for="bitrate">Taxa de áudio</label><select id="bitrate"><option value="320">320 kbps</option><option value="256">256 kbps</option><option value="192" selected>192 kbps</option><option value="128">128 kbps</option></select></div></div>
+          <div class="options"><label class="check"><input type="checkbox" id="playlist"><span>Baixar playlist<small>Até 100 itens por link</small></span></label><label class="check"><input type="checkbox" id="subtitles"><span>Salvar legendas<small>Português e inglês, se disponíveis</small></span></label></div>
+          <button type="submit" class="primary" id="add">Adicionar à fila <span>↓</span></button>
+          <p class="hint">A qualidade depende do arquivo oferecido pelo site.</p>
+        </form>
+      </section>
+      <section class="panel queue-panel">
+        <div class="section-head"><h2>Seus downloads <span id="total" class="count">0</span></h2><button id="open-folder" class="quiet">Abrir pasta ↗</button></div>
+        <div class="stats"><div><strong id="running-count">0</strong><span>Em andamento</span></div><div><strong id="done-count">0</strong><span>Concluídos</span></div><div><strong id="waiting-count">0</strong><span>Na fila</span></div></div>
+        <div class="queue-toolbar"><div class="tabs" role="group" aria-label="Filtrar downloads"><button data-filter="all" class="selected">Todos</button><button data-filter="active">Fila</button><button data-filter="finished">Histórico</button></div><button id="clear" class="quiet">Limpar histórico</button></div>
+        <div id="jobs" aria-live="off"></div>
+        <div id="empty" class="empty"><div class="empty-icon">↓</div><h3>O próximo download começa aqui.</h3><p>Adicione um link ao lado.<br>O progresso aparece nesta lista.</p></div>
+        <div class="destination"><span>SALVANDO EM</span><p id="destination">Carregando…</p></div>
+      </section>
+    </div>
+    <footer><span>7K Downloader <b>1.0</b></span><span>2 downloads simultâneos · histórico neste computador</span></footer>
+  </main>
+  <div id="toast" role="status" hidden></div>
+</body></html>

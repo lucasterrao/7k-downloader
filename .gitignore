@@ -1,0 +1,17 @@
+bin/
+downloads/
+data/
+*.log
+.qa/
+7K Downloader.exe
+*.exe
+*.dll
+dist/
+*.zip
+*cookies*
+.env*
+!.env.example
+*.pfx
+*.key
+.agents/
+.codex/

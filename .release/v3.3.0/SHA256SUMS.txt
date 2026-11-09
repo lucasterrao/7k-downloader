@@ -1,0 +1,2 @@
+f1779d18c6100188f2a67b2ee7ce137b88c56d59e9bcec9e2298c282ea67b4e8  7K-Downloader-3.3.0-windows-x64.zip
+ed7a2710b3cb153d2caecab89ae1590da368986cdc47c427b6c26bee5a3fbdeb  7K-Downloader-3.3.0-source.zip

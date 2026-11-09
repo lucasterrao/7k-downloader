@@ -1,0 +1,51 @@
+name: Build Windows
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publicar Release no GitHub
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.13.0'
+      - name: Preparar SDK e componentes de teste
+        shell: pwsh
+        run: |
+          ./scripts/setup-webview.ps1
+          ./scripts/install-tools.ps1
+      - name: Testar
+        shell: pwsh
+        run: |
+          node --test test/*.test.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/smoke-test.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Compilar e empacotar
+        shell: pwsh
+        run: |
+          ./scripts/build.ps1
+          ./scripts/package-release.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 7K-Downloader-Windows
+          path: |
+            dist/*.zip
+            dist/SHA256SUMS.txt
+      - name: Publicar Release
+        if: inputs.publish
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          gh release create "v$version" dist/*.zip dist/SHA256SUMS.txt --title "7K Downloader $version" --notes-file DISTRIBUICAO.md --target "$env:GITHUB_SHA"
