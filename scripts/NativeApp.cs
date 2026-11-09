@@ -17,8 +17,8 @@ using System.Drawing.Drawing2D;
 [assembly: AssemblyTitle("7K Downloader")]
 [assembly: AssemblyDescription("Aplicativo nativo Windows para downloads de vídeo e áudio")]
 [assembly: AssemblyProduct("7K Downloader")]
-[assembly: AssemblyVersion("3.3.0.0")]
-[assembly: AssemblyFileVersion("3.3.0.0")]
+[assembly: AssemblyVersion("3.3.1.0")]
+[assembly: AssemblyFileVersion("3.3.1.0")]
 
 public class DownloadOptions {
     public string mode = "video", format = "mp4", quality = "1080", bitrate = "192", destination = "";
@@ -34,6 +34,16 @@ public class Job {
 }
 public class AppStatus { public bool ready; public string destination; public int concurrency, apiVersion; public Job[] jobs = new Job[0]; }
 public class Preview { public string title, uploader, site; public int[] heights; }
+static class LinkInput {
+    public static string ReadinessProblem(string root, bool started, AppStatus status, string engineError) {
+        var missing = new[] { "node.exe", "yt-dlp.exe", "ffmpeg.exe", "ffprobe.exe" }.Where(name => !File.Exists(Path.Combine(root, "bin", name))).ToArray();
+        if (missing.Length > 0) return "A instalação dos componentes está incompleta.\r\n\r\nFaltam: " + String.Join(", ", missing) + "\r\n\r\nExtraia todo o ZIP em uma pasta pessoal. Feche o 7K, execute Instalar componentes.cmd nessa pasta e aguarde a mensagem de conclusão. Depois abra o aplicativo novamente. Se o instalador falhar, copie a mensagem dele.";
+        if (!String.IsNullOrEmpty(engineError)) return "O motor de downloads não está disponível.\r\n\r\n" + engineError + "\r\n\r\nFeche e abra o 7K novamente. Se continuar, consulte data\\server.log. Não envie cookies ou tokens.";
+        if (!started || status == null) return "O motor de downloads ainda não respondeu. Aguarde a inicialização e tente novamente. Se o aviso continuar, feche e abra o aplicativo e confira data\\server.log.";
+        if (!status.ready) return "Os componentes não estão disponíveis. Feche o aplicativo, execute Instalar componentes.cmd, confira se terminou sem erro e abra novamente.";
+        return null;
+    }
+}
 public class AuthSettings { public string cookiesFile = "", proxyUrl = "", subLanguages = "pt.*,en.*"; public int concurrency = 2, retries = 3, timeout = 25, speedLimitKB = 0, fragmentThreads = 1; public bool resume = true; }
 public class Settings {
     public bool smart = true, playlist, subtitles;
@@ -232,7 +242,7 @@ sealed class MainWindow : Form {
     readonly TableLayoutPanel layout; readonly Panel services = new Panel();
     readonly NotifyIcon tray = new NotifyIcon(); readonly ContextMenuStrip trayMenu = new ContextMenuStrip();
     readonly Dictionary<string,string> knownStatus = new Dictionary<string,string>();
-    string filter = "all"; bool polling, closing, started, changing, adding, explicitExit;
+    string filter = "all", engineError = ""; bool polling, closing, started, changing, adding, explicitExit;
     [DllImport("kernel32.dll")] static extern uint SetThreadExecutionState(uint flags);
     [STAThread]
     static void Main() {
@@ -252,9 +262,9 @@ sealed class MainWindow : Form {
         var edit=new ToolStripMenuItem("Editar");edit.DropDownItems.Add("Colar link",null,delegate{Paste(true);});edit.DropDownItems.Add("Limpar histórico",null,async delegate{await ClearHistory();});
         var viewMenu=new ToolStripMenuItem("Ver");viewMenu.DropDownItems.Add("Todos os downloads",null,delegate{filter="all";Render();});viewMenu.DropDownItems.Add("Em andamento",null,delegate{filter="active";Render();});viewMenu.DropDownItems.Add("Navegador de sites",null,delegate{ShowBrowser("https://www.youtube.com/");});
         var tools = new ToolStripMenuItem("Ferramentas"); tools.DropDownItems.Add("Preferências", null, delegate { Preferences(); }); tools.DropDownItems.Add("Limpar histórico", null, async delegate { await ClearHistory(); });
-        var help = new ToolStripMenuItem("Ajuda"); help.DropDownItems.Add("Sobre o 7K Downloader", null, delegate { MessageBox.Show(this, "7K Downloader 3.3\r\n\r\nAplicativo independente com interface nativa Windows.\r\nMotor de downloads: yt-dlp e FFmpeg.\r\nNavegador integrado: Microsoft WebView2.\r\n\r\nMP4 / MKV · MP3 / M4A / Opus", "Sobre", MessageBoxButtons.OK, MessageBoxIcon.Information); }); menu.Items.AddRange(new ToolStripItem[] { file, edit, viewMenu, tools, help }); MainMenuStrip = menu; layout.Controls.Add(menu, 0, 0);
+        var help = new ToolStripMenuItem("Ajuda"); help.DropDownItems.Add("Sobre o 7K Downloader", null, delegate { MessageBox.Show(this, "7K Downloader 3.3.1\r\n\r\nAplicativo independente com interface nativa Windows.\r\nMotor de downloads: yt-dlp e FFmpeg.\r\nNavegador integrado: Microsoft WebView2.\r\n\r\nMP4 / MKV · MP3 / M4A / Opus", "Sobre", MessageBoxButtons.OK, MessageBoxIcon.Information); }); menu.Items.AddRange(new ToolStripItem[] { file, edit, viewMenu, tools, help }); MainMenuStrip = menu; layout.Controls.Add(menu, 0, 0);
         var toolbar = new FlowLayoutPanel { Dock = DockStyle.Fill, BackColor = Design.Pale, Padding = new Padding(18, 14, 10, 8), WrapContents = false, Margin = new Padding(0) };
-        paste.Size = new Size(175, 44); paste.Font = Design.Font(10); paste.Margin = new Padding(0, 10, 15, 0); paste.Enabled = false; paste.Click += delegate { Paste(true); }; toolbar.Controls.Add(paste);
+        paste.Size = new Size(175, 44); paste.Font = Design.Font(10); paste.Margin = new Padding(0, 10, 15, 0); paste.Enabled = true; paste.Click += delegate { Paste(true); }; toolbar.Controls.Add(paste);
         smart.Text = ""; smart.AccessibleName="Modo inteligente"; smart.Size = new Size(50, 44); smart.Margin = new Padding(0, 10, 14, 0); smart.Checked = settings.smart; smart.CheckedChanged += delegate { settings.smart = smart.Checked; SaveSettings(); }; toolbar.Controls.Add(smart);
         mode = Design.Combo(new[] { "Vídeo", "Áudio" }); format = Design.Combo(new[] { "MP4", "MKV" }); quality = Design.Combo(new[] { "Melhor disponível", "4K · 2160p", "2K · 1440p", "1080p", "720p", "480p" }); bitrate = Design.Combo(new[] { "320 kbps", "256 kbps", "192 kbps", "128 kbps" });
         toolbar.Controls.Add(Field("Transferir", mode, 130)); var qualityBox = Field("Qualidade", quality, 155); bitrate.SetBounds(0, 25, 155, 26); qualityBox.Controls.Add(bitrate); toolbar.Controls.Add(qualityBox); toolbar.Controls.Add(Field("Formato", format, 125));
@@ -272,10 +282,10 @@ sealed class MainWindow : Form {
         quality.SelectedIndexChanged += delegate { if (!changing && quality.SelectedIndex >= 0) { settings.quality = new[] { "best", "2160", "1440", "1080", "720", "480" }[quality.SelectedIndex]; SaveSettings(); } };
         bitrate.SelectedIndexChanged += delegate { if (!changing && bitrate.SelectedIndex >= 0) { settings.bitrate = new[] { "320", "256", "192", "128" }[bitrate.SelectedIndex]; SaveSettings(); } };
         timer.Interval = 1500; timer.Tick += async delegate { await Poll(); };
-        Shown += async delegate { try { await backend.Start(); if (closing) { await backend.Stop(); return; } started = true; await Poll(); timer.Start(); } catch (Exception e) { if (!closing) { footer.Text = e.Message; MessageBox.Show(this, e.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Error); } } };
+        Shown += async delegate { try { await backend.Start(); if (closing) { await backend.Stop(); return; } started = true; await Poll(); timer.Start(); } catch (Exception e) { if (!closing) { engineError = e.Message; footer.Text = e.Message; MessageBox.Show(this, LinkInput.ReadinessProblem(root,started,status,engineError), Text, MessageBoxButtons.OK, MessageBoxIcon.Error); } } };
         KeyDown += delegate(object sender, KeyEventArgs e) { if (e.Control && e.KeyCode == Keys.V && !search.Focused) { e.SuppressKeyPress = true; Paste(true); } if (e.Control && e.KeyCode == Keys.O) { e.SuppressKeyPress = true; OpenFolder(); } if (e.Control && e.KeyCode == Keys.F) { e.SuppressKeyPress = true; search.Focus(); } };
         tray.Icon=Icon;tray.Text="7K Downloader";trayMenu.Items.Add("Abrir 7K Downloader",null,delegate{Show();WindowState=FormWindowState.Normal;Activate();});trayMenu.Items.Add("Encerrar",null,delegate{explicitExit=true;Close();});tray.ContextMenuStrip=trayMenu;tray.DoubleClick+=delegate{Show();WindowState=FormWindowState.Normal;Activate();};tray.Visible=true;
-        FormClosing += OnClosing;FormClosed+=delegate{SetThreadExecutionState(0x80000000);tray.Visible=false;tray.Dispose();trayMenu.Dispose();timer.Dispose();}; AllowDrop = true; DragEnter += delegate(object sender, DragEventArgs e) { if (e.Data.GetDataPresent(DataFormats.UnicodeText)) e.Effect = DragDropEffects.Copy; }; DragDrop += delegate(object sender, DragEventArgs e) { if (started) ShowPaste(Convert.ToString(e.Data.GetData(DataFormats.UnicodeText))); };
+        FormClosing += OnClosing;FormClosed+=delegate{SetThreadExecutionState(0x80000000);tray.Visible=false;tray.Dispose();trayMenu.Dispose();timer.Dispose();}; AllowDrop = true; DragEnter += delegate(object sender, DragEventArgs e) { if (e.Data.GetDataPresent(DataFormats.UnicodeText)) e.Effect = DragDropEffects.Copy; }; DragDrop += delegate(object sender, DragEventArgs e) { ShowPaste(Convert.ToString(e.Data.GetData(DataFormats.UnicodeText))); };
         ApplyTheme();
     }
     Panel Field(string text, ComboBox c, int width) { var p = new Panel { Size = new Size(width, 65), Margin = new Padding(0, 0, 18, 0) }; var l = Design.Label(text, 8); l.ForeColor = Design.Muted; l.SetBounds(0, 0, width, 22); c.SetBounds(0, 25, width, 26); p.Controls.AddRange(new Control[] { l, c }); return p; }
@@ -297,12 +307,18 @@ sealed class MainWindow : Form {
     void LoadSettings() { try { settings = json.Deserialize<Settings>(File.ReadAllText(Path.Combine(root, "data", "ui-settings.json"), Encoding.UTF8)) ?? new Settings(); } catch {} }
     void SaveSettings() { UpdateNotice(); try { Directory.CreateDirectory(Path.Combine(root, "data")); File.WriteAllText(Path.Combine(root, "data", "ui-settings.json"), json.Serialize(settings), Encoding.UTF8); } catch {} }
     DownloadOptions Current(string[] urls) { return new DownloadOptions { urls = urls, mode = settings.mode, format = settings.mode == "audio" ? settings.audioFormat : settings.videoFormat, quality = settings.quality, bitrate = settings.bitrate, playlist = settings.playlist, subtitles = settings.subtitles }; }
-    async void Paste(bool clipboard) {
-        if (!started || status == null || !status.ready || closing) return; string text = ""; if (clipboard) try { if (Clipboard.ContainsText()) text = Clipboard.GetText(); } catch {}
-        var links = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).Where(x => x.Length > 0).ToArray(); bool valid = links.Length > 0 && links.All(s => { Uri u; return Uri.TryCreate(s, UriKind.Absolute, out u) && (u.Scheme == "http" || u.Scheme == "https"); });
-        if (clipboard && smart.Checked && valid) await Add(Current(links)); else ShowPaste(valid ? text : "");
+    bool CanAddLinks() {
+        if (closing || adding) return false;
+        var problem = LinkInput.ReadinessProblem(root,started,status,engineError);
+        if (problem == null) return true;
+        MessageBox.Show(this,problem,"Não foi possível adicionar o link",MessageBoxButtons.OK,MessageBoxIcon.Warning); return false;
     }
-    async void ShowPaste(string initial) { if (closing || !started || status == null || !status.ready) return; using (var d = new PasteDialog(backend, settings, initial)) { d.Icon = Icon; if (d.ShowDialog(this) == DialogResult.OK) await Add(d.Result); } }
+    async void Paste(bool clipboard) {
+        if (!CanAddLinks()) return; string text = ""; if (clipboard) try { if (Clipboard.ContainsText()) text = Clipboard.GetText(); } catch { /* Open the manual entry dialog if another app holds the clipboard. */ }
+        var links = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).Where(x => x.Length > 0).ToArray(); bool valid = links.Length > 0 && links.All(s => { Uri u; return Uri.TryCreate(s, UriKind.Absolute, out u) && (u.Scheme == "http" || u.Scheme == "https"); });
+        if (clipboard && smart.Checked && valid) await Add(Current(links)); else ShowPaste(text);
+    }
+    async void ShowPaste(string initial) { if (!CanAddLinks()) return; using (var d = new PasteDialog(backend, settings, initial)) { d.Icon = Icon; if (d.ShowDialog(this) == DialogResult.OK) await Add(d.Result); } }
     string ChooseDestination(string initial) {
         using(var chooser=new FolderBrowserDialog{Description="Onde deseja salvar os arquivos? Eles serão salvos diretamente nesta pasta.",SelectedPath=Directory.Exists(initial??"")?initial:Directory.Exists(settings.lastFolder)?settings.lastFolder:Path.Combine(root,"downloads"),ShowNewFolderButton=true}) {
             if(chooser.ShowDialog(this)!=DialogResult.OK)return null;settings.lastFolder=chooser.SelectedPath;SaveSettings();return chooser.SelectedPath;
@@ -312,15 +328,15 @@ sealed class MainWindow : Form {
         if(adding||closing)return;adding=true;paste.Enabled=false;
         try { var folder=ChooseDestination(settings.lastFolder);if(folder==null)return;options.destination=folder;await backend.Post("jobs", options); filter = "all"; search.Clear(); await Poll(); }
         catch (Exception e) { if (!closing) MessageBox.Show(this, e.Message, "Não foi possível adicionar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
-        finally { adding=false;if (!closing && !IsDisposed) paste.Enabled = status != null && status.ready; }
+        finally { adding=false;if (!closing && !IsDisposed) paste.Enabled = true; }
     }
     async Task Poll() {
         if (polling || closing || !started) return; polling = true;
         try { var result = await backend.Get<AppStatus>("status"); if (closing || IsDisposed) return;
             foreach(var job in result.jobs){string previous;if(knownStatus.TryGetValue(job.id,out previous)&&previous!="completed"&&job.status=="completed"){if(settings.notify){tray.BalloonTipTitle="Download concluído";tray.BalloonTipText=job.title??"Seu arquivo está pronto.";tray.ShowBalloonTip(4000);}if(settings.sound)System.Media.SystemSounds.Asterisk.Play();}knownStatus[job.id]=job.status;}
-            status = result; paste.Enabled = status.ready&&!adding; footer.Text = status.ready ? "Salvar em: " + (String.IsNullOrEmpty(settings.lastFolder)?status.destination:settings.lastFolder) : "Componentes ausentes. Execute Instalar componentes.cmd e reabra.";
+            status = result; engineError = ""; paste.Enabled = !adding; footer.Text = status.ready ? "Salvar em: " + (String.IsNullOrEmpty(settings.lastFolder)?status.destination:settings.lastFolder) : "Componentes ausentes. Clique em Colar link para ver o que falta.";
             SetThreadExecutionState(settings.preventSleep&&status.jobs.Any(j=>DownloadRow.Active(j.status))?0x80000001:0x80000000);Render(); }
-        catch (Exception e) { if (!closing && !IsDisposed) { footer.Text = e.Message; paste.Enabled = false; } } finally { polling = false; }
+        catch (Exception e) { if (!closing && !IsDisposed) { engineError = e.Message; status = null; footer.Text = e.Message; paste.Enabled = !adding; } } finally { polling = false; }
     }
     void Render() {
         foreach (var b in filters) { bool selected = (string)b.Tag == filter; b.ForeColor = selected ? Design.Green : Design.Muted; b.BackColor = selected ? Design.Pale : Design.Background; }

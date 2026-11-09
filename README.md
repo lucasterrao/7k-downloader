@@ -6,6 +6,8 @@ Baixe o ZIP Windows x64 na seção [Releases](https://github.com/lucasterrao/7k-
 
 Requer Windows 10/11 x64 e .NET Framework 4.8. A navegação integrada requer Microsoft WebView2 Runtime. Não há suporte nativo a macOS, Linux ou Windows 32 bits. Consulte [segurança e privacidade](SECURITY.md) e [distribuição](DISTRIBUICAO.md). Não desative o antivírus; esta versão não tem certificado próprio de assinatura de código. Ainda é necessário validar em outro computador antes de anunciar compatibilidade ampla.
 
+Na versão 3.3.1, **Colar link** permanece acessível para informar componentes ausentes, inicialização pendente ou falhas de comunicação. Se não for possível ler um link da área de transferência, abre a entrada manual. Isso não substitui a instalação dos componentes: leia a mensagem e execute `Instalar componentes.cmd` caso solicitado.
+
 Aplicativo independente para Windows, com janela e controles nativos em português. A versão 3.0 tem tema escuro, organização inspirada no 4K Video Downloader+, botão verde Colar link, modo inteligente, opções na barra superior, lista de downloads e navegador de sites integrado via Microsoft WebView2. Usa código próprio para interface, API local, fila e integração com **yt-dlp** e **FFmpeg**. Não reutiliza código ou recursos visuais do 4K Video Downloader.
 
 ## Abrir

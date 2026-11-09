@@ -10,6 +10,15 @@ class NativeSmoke {
         catch (Exception e) { Console.Error.WriteLine(e); return 1; }
     }
     static async Task Run(string root, string url) {
+        var inputRoot=Path.Combine(root,"input-check-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(Path.Combine(inputRoot,"bin"));
+        var missing=LinkInput.ReadinessProblem(inputRoot,false,null,"");
+        if(missing==null||!missing.Contains("node.exe")||!missing.Contains("yt-dlp.exe")||!missing.Contains("ffmpeg.exe")||!missing.Contains("ffprobe.exe")||!missing.Contains("Instalar componentes.cmd"))throw new Exception("A entrada deve explicar quais componentes faltam, em vez de falhar silenciosamente.");
+        foreach(var name in new[]{"node.exe","yt-dlp.exe","ffmpeg.exe","ffprobe.exe"})File.WriteAllText(Path.Combine(inputRoot,"bin",name),"");
+        if(LinkInput.ReadinessProblem(inputRoot,false,null,"")==null)throw new Exception("Inicialização pendente deve ser explicada.");
+        if(!LinkInput.ReadinessProblem(inputRoot,true,new AppStatus{ready=true},"Motor interrompido").Contains("Motor interrompido"))throw new Exception("Falha de conexão não pode ser ignorada.");
+        if(LinkInput.ReadinessProblem(inputRoot,true,new AppStatus{ready=false},"")==null)throw new Exception("Motor sem componentes deve orientar a instalação.");
+        if(LinkInput.ReadinessProblem(inputRoot,true,new AppStatus{ready=true},"")!=null)throw new Exception("Componentes prontos devem liberar a entrada.");
+        Console.WriteLine("Entrada de links: instalação incompleta, inicialização, falha de conexão e estado pronto: OK.");
         using (var backend = new Backend(root)) {
             await backend.Start();
             var state = await backend.Get<AppStatus>("status");
